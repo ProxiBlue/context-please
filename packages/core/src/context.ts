@@ -662,14 +662,14 @@ export class Context {
         ]
       : []
 
-    // Run parallel searches across all matching collections
-    const searchPromises = matchingCollections.map(async ({ collectionName, codebasePath }) => {
-      try {
-        const hasCollection = await this.vectorDatabase.hasCollection(collectionName)
-        if (!hasCollection) {
-          return []
-        }
+    // Concurrency limit prevents Milvus connection pool exhaustion.
+    // With 371+ collections, unlimited parallel queries kill the connection pool.
+    // Removed per-collection hasCollection() check (was 371 extra round-trips per search).
+    // Missing collections are caught by the try/catch and silently skipped.
+    const SEARCH_CONCURRENCY = 10
 
+    const searchCollection = async ({ collectionName, codebasePath }: { collectionName: string, codebasePath: string }) => {
+      try {
         if (isHybrid) {
           const results: HybridSearchResult[] = await this.vectorDatabase.hybridSearch(
             collectionName,
@@ -713,9 +713,15 @@ export class Context {
         console.warn(`[Context] ⚠️  Search failed for collection ${collectionName} (${codebasePath}):`, error)
         return []
       }
-    })
+    }
 
-    const allResults = await Promise.all(searchPromises)
+    // Process collections in batches of SEARCH_CONCURRENCY
+    const allResults: Array<Array<SemanticSearchResult & { _sourceCollection: string }>> = []
+    for (let i = 0; i < matchingCollections.length; i += SEARCH_CONCURRENCY) {
+      const batch = matchingCollections.slice(i, i + SEARCH_CONCURRENCY)
+      const batchResults = await Promise.all(batch.map(searchCollection))
+      allResults.push(...batchResults)
+    }
 
     // Flatten and sort by score descending
     const merged = allResults
