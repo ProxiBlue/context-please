@@ -65,7 +65,7 @@ Claude Context supports a global configuration file at `~/.context/.env` to simp
 | `CUSTOM_IGNORE_PATTERNS` | Additional ignore patterns (comma-separated, e.g., `temp/**,*.backup,private/**`) | None |
 | `DEFAULT_BASE_PATH` | Absolute path prefix for portable collection naming. When set, `search_code` searches across all indexed collections instead of a single exact match. | None |
 | `DISABLE_STARTUP_SYNC` | Set to `true` to skip the automatic background sync on startup and the 5-minute periodic sync. Use `sync_codebase` tool for manual sync when needed. | `false` |
-| `SNAPSHOT_PATH` | Absolute path to the snapshot JSON file that tracks indexed codebases. Useful for sharing a pre-built snapshot across a team or persisting it in a project directory. | `~/.context/mcp-codebase-snapshot.json` |
+| `SNAPSHOT_PATH` | Absolute path to the snapshot JSON file that tracks indexed codebases. Useful for sharing a pre-built snapshot across a team or persisting it in a project directory. | `${DEFAULT_BASE_PATH}/.context/mcp-codebase-snapshot.json` if `DEFAULT_BASE_PATH` is set, otherwise `~/.context/mcp-codebase-snapshot.json` |
 
 ## 🚀 Quick Setup
 

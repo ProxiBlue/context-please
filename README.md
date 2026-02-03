@@ -675,12 +675,19 @@ When disabled, you can still trigger a sync manually at any time using the `sync
 
 #### Environment Variable: `SNAPSHOT_PATH`
 
-Override the location of the snapshot file that tracks which codebases are indexed. By default, this is `~/.context/mcp-codebase-snapshot.json`.
+Override the location of the snapshot file that tracks which codebases are indexed.
+
+**Resolution order:**
+1. `SNAPSHOT_PATH` env var (explicit override)
+2. `${DEFAULT_BASE_PATH}/.context/mcp-codebase-snapshot.json` (project-local, if `DEFAULT_BASE_PATH` is set)
+3. `~/.context/mcp-codebase-snapshot.json` (user home fallback)
+
+When `DEFAULT_BASE_PATH` is set, the snapshot automatically lives in the project's `.context/` directory with no extra configuration. This works across any environment (DDEV, Warden, native install) because `DEFAULT_BASE_PATH` always points to the project root.
 
 This is useful for:
-- **Team sharing:** Point to a snapshot file committed in the project repo so every developer gets a pre-built manifest without running sync
-- **Container environments:** Persist the snapshot outside of ephemeral home directories
-- **Multi-project isolation:** Keep separate snapshot files per project
+- **Team sharing:** Commit the snapshot file to the repo so every developer gets a pre-built manifest without running sync
+- **Container environments:** Persist the snapshot in the project directory instead of ephemeral home directories
+- **Multi-project isolation:** Each project automatically gets its own snapshot when using `DEFAULT_BASE_PATH`
 
 ```json
 {
