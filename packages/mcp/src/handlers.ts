@@ -751,20 +751,26 @@ export class ToolHandlers {
       // results are always returned regardless of which specific sub-path the
       // caller provides. Without base_path, fall back to single-collection
       // search for backward compatibility.
-      const vectorDb = this.context.getVectorDatabase()
-      const supportsMultiSearch = typeof (vectorDb as any).getCollectionCodebasePaths === 'function'
-
-      if (basePath && supportsMultiSearch) {
+      if (basePath) {
         console.log(`[SEARCH] base_path set — always using multi-collection search across all indexed collections`)
 
         try {
-          const collectionMap: Map<string, string> = await (vectorDb as any).getCollectionCodebasePaths()
+          // Build collection map from snapshot instead of querying remote Milvus.
+          // The snapshot already tracks all indexed codebases as portable keys.
+          // context.getCollectionName() converts each key to its Milvus collection name.
+          const indexedCodebases = this.snapshotManager.getIndexedCodebases()
+          const collectionMap = new Map<string, string>()
+
+          for (const codebasePath of indexedCodebases) {
+            const collectionName = this.context.getCollectionName(codebasePath)
+            collectionMap.set(collectionName, codebasePath)
+          }
 
           if (collectionMap.size === 0) {
             return {
               content: [{
                 type: 'text',
-                text: `Error: No indexed collections found in the vector database. Please index codebases first using the index_codebase tool.`,
+                text: `Error: No indexed collections found in snapshot. Please index codebases first using the index_codebase tool.`,
               }],
               isError: true,
             }
