@@ -202,7 +202,8 @@ export class ToolHandlers {
   }
 
   public async handleIndexCodebase(args: any) {
-    const { path: codebasePath, force, splitter, customExtensions, ignorePatterns, base_path: basePathArg } = args
+    const { path: codebasePath, force, splitter, customExtensions, ignorePatterns, base_path: basePathArg, blocking: blockingArg } = args
+    const blocking = blockingArg || false
     const basePath = basePathArg || process.env.DEFAULT_BASE_PATH || undefined
     const forceReindex = force || false
     const splitterType = splitter || 'ast' // Default to AST
@@ -374,9 +375,6 @@ export class ToolHandlers {
       // Track the codebase path for syncing
       trackCodebasePath(absolutePath)
 
-      // Start background indexing - now safe to proceed
-      this.startBackgroundIndexing(absolutePath, forceReindex, splitterType, portableKey, resolvedBasePath)
-
       const pathInfo = codebasePath !== absolutePath
         ? `\nNote: Input path '${codebasePath}' was resolved to absolute path '${absolutePath}'`
         : ''
@@ -388,6 +386,31 @@ export class ToolHandlers {
       const ignoreInfo = customIgnorePatterns.length > 0
         ? `\nUsing ${customIgnorePatterns.length} custom ignore patterns: ${customIgnorePatterns.join(', ')}`
         : ''
+
+      if (blocking) {
+        // Blocking mode: await completion and return final stats
+        const stats = await this.startBackgroundIndexing(absolutePath, forceReindex, splitterType, portableKey, resolvedBasePath)
+
+        if (stats) {
+          let text = `Indexing complete for ${displayPath}.\nIndexed ${stats.indexedFiles} files, ${stats.insertedChunks}/${stats.totalChunks} chunks inserted.`
+          if (stats.failedBatches > 0) {
+            text += `\nWarning: ${stats.failedBatches} embedding batch(es) failed. ${stats.failedChunks} chunks were not inserted.`
+          }
+          text += `${pathInfo}${extensionInfo}${ignoreInfo}`
+          return { content: [{ type: 'text', text }] }
+        }
+
+        return {
+          content: [{
+            type: 'text',
+            text: `Indexing failed for ${displayPath}. Check server logs for details.${pathInfo}${extensionInfo}${ignoreInfo}`,
+          }],
+          isError: true,
+        }
+      }
+
+      // Default: fire-and-forget background indexing (existing behavior)
+      this.startBackgroundIndexing(absolutePath, forceReindex, splitterType, portableKey, resolvedBasePath)
 
       return {
         content: [{
@@ -417,7 +440,14 @@ export class ToolHandlers {
     splitterType: string,
     portableKey?: string,
     basePath?: string,
-  ) {
+  ): Promise<{
+    indexedFiles: number
+    totalChunks: number
+    insertedChunks: number
+    failedBatches: number
+    failedChunks: number
+    status: string
+  } | null> {
     const absolutePath = codebasePath
     const effectiveKey = portableKey || absolutePath
     const effectiveRoot = basePath || absolutePath
@@ -511,6 +541,15 @@ export class ToolHandlers {
       }
 
       console.log(`[BACKGROUND-INDEX] ${message}`)
+
+      return {
+        indexedFiles: stats.indexedFiles,
+        totalChunks: stats.totalChunks,
+        insertedChunks: stats.insertedChunks,
+        failedBatches: stats.failedBatches,
+        failedChunks: stats.failedChunks,
+        status: stats.status,
+      }
     }
     catch (error: any) {
       console.error(`[BACKGROUND-INDEX] Error during indexing for ${absolutePath}:`, error)
@@ -525,6 +564,8 @@ export class ToolHandlers {
 
       // Log error but don't crash MCP service - indexing errors are handled gracefully
       console.error(`[BACKGROUND-INDEX] Indexing failed for ${absolutePath}: ${errorMessage}`)
+
+      return null
     }
   }
 
@@ -1099,8 +1140,8 @@ export class ToolHandlers {
 
       if (!isIndexed) {
         if (forceInitialIndex) {
-          // Delegate to handleIndexCodebase for full initial index
-          return await this.handleIndexCodebase({ ...args, force: true })
+          // Delegate to handleIndexCodebase for full initial index, passing blocking flag through
+          return await this.handleIndexCodebase({ ...args, force: true, blocking: args.blocking || false })
         }
 
         return {

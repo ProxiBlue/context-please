@@ -359,6 +359,11 @@ This tool is versatile and can be used before completing various tasks to retrie
                   type: 'string',
                   description: 'Optional ABSOLUTE path prefix to strip for portable collection naming. Makes indexes shareable across machines with different root paths. Must be a parent directory of path. Falls back to DEFAULT_BASE_PATH env var if not provided.',
                 },
+                blocking: {
+                  type: 'boolean',
+                  description: 'If true, wait for indexing to complete before returning. Returns final stats instead of background acknowledgement. Use for sequential bulk indexing.',
+                  default: false,
+                },
               },
               required: ['path'],
             },
@@ -435,6 +440,11 @@ This tool is versatile and can be used before completing various tasks to retrie
                 base_path: {
                   type: 'string',
                   description: 'Optional ABSOLUTE path prefix to strip for portable collection naming. Must match the base_path used during indexing. Falls back to DEFAULT_BASE_PATH env var if not provided.',
+                },
+                blocking: {
+                  type: 'boolean',
+                  description: 'If true and force triggers a full initial index, wait for indexing to complete before returning. Returns final stats instead of background acknowledgement.',
+                  default: false,
                 },
               },
               required: ['path'],
