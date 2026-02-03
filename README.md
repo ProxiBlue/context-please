@@ -673,6 +673,34 @@ Disabling startup sync is recommended when:
 
 When disabled, you can still trigger a sync manually at any time using the `sync_codebase` tool. This gives you full control over when file change detection runs.
 
+#### Environment Variable: `SNAPSHOT_PATH`
+
+Override the location of the snapshot file that tracks which codebases are indexed. By default, this is `~/.context/mcp-codebase-snapshot.json`.
+
+This is useful for:
+- **Team sharing:** Point to a snapshot file committed in the project repo so every developer gets a pre-built manifest without running sync
+- **Container environments:** Persist the snapshot outside of ephemeral home directories
+- **Multi-project isolation:** Keep separate snapshot files per project
+
+```json
+{
+  "context-please": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@anthropic/context-please-mcp"],
+    "env": {
+      "VECTOR_DB_TYPE": "milvus",
+      "MILVUS_ADDRESS": "your-milvus-host:19530",
+      "DEFAULT_BASE_PATH": "/var/www/html",
+      "DISABLE_STARTUP_SYNC": "true",
+      "SNAPSHOT_PATH": "/var/www/html/.context/mcp-codebase-snapshot.json"
+    }
+  }
+}
+```
+
+When combined with `DISABLE_STARTUP_SYNC=true` and a shared Milvus instance, this enables a zero-setup workflow: one developer (or CI) indexes the codebase once, the snapshot file is committed to the repo, and every other developer can search immediately without indexing or syncing.
+
 #### Usage Examples
 
 **Index a vendor directory portably:**
