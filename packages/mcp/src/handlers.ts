@@ -32,7 +32,7 @@ export class ToolHandlers {
    *   remote Milvus instance cannot crash the MCP process.
    */
   private nonBlockingCloudSync(): void {
-    if (this.cloudSyncInFlight) {
+    if (this.cloudSyncInFlight || process.env.DISABLE_STARTUP_SYNC === 'true') {
       return
     }
 
