@@ -276,6 +276,23 @@ Index a codebase directory to enable semantic search using a configurable code s
 - If indexing is attempted on an already indexed path, and a conflict is detected, you MUST prompt the user to confirm whether to proceed with a force index (i.e., re-indexing and overwriting the previous index).
 `
 
+    const sync_description = `
+Incrementally sync an already-indexed codebase by detecting file changes (added, removed, modified) and updating only the affected chunks.
+
+⚠️ **IMPORTANT**:
+- You MUST provide an absolute path to the target codebase.
+- The codebase MUST have been previously indexed with index_codebase.
+
+🎯 **When to Use**:
+- After making code changes and wanting the search index to reflect them
+- When the codebase has been updated (e.g., git pull) and the index is stale
+- As a lightweight alternative to force re-indexing the entire codebase
+
+✨ **Usage Guidance**:
+- Much faster than a full re-index since it only processes changed files
+- If the codebase has not been indexed yet, use index_codebase first (or pass force=true)
+`
+
     const search_description = `
 Search the indexed codebase using natural language queries within a specified absolute path.
 
@@ -401,6 +418,29 @@ This tool is versatile and can be used before completing various tasks to retrie
             },
           },
           {
+            name: 'sync_codebase',
+            description: sync_description,
+            inputSchema: {
+              type: 'object',
+              properties: {
+                path: {
+                  type: 'string',
+                  description: `ABSOLUTE path to the codebase directory to sync.`,
+                },
+                force: {
+                  type: 'boolean',
+                  description: 'If true and the codebase is not yet indexed, perform a full initial index instead of returning an error.',
+                  default: false,
+                },
+                base_path: {
+                  type: 'string',
+                  description: 'Optional ABSOLUTE path prefix to strip for portable collection naming. Must match the base_path used during indexing. Falls back to DEFAULT_BASE_PATH env var if not provided.',
+                },
+              },
+              required: ['path'],
+            },
+          },
+          {
             name: 'get_indexing_status',
             description: `Get the current indexing status of a codebase. Shows progress percentage for actively indexing codebases and completion status for indexed codebases.`,
             inputSchema: {
@@ -433,6 +473,8 @@ This tool is versatile and can be used before completing various tasks to retrie
           return await this.toolHandlers.handleSearchCode(args)
         case 'clear_index':
           return await this.toolHandlers.handleClearIndex(args)
+        case 'sync_codebase':
+          return await this.toolHandlers.handleSyncCodebase(args)
         case 'get_indexing_status':
           return await this.toolHandlers.handleGetIndexingStatus(args)
 

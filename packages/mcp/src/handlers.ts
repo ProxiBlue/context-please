@@ -1033,6 +1033,124 @@ export class ToolHandlers {
     }
   }
 
+  public async handleSyncCodebase(args: any) {
+    const { path: codebasePath, force, base_path: basePathArg } = args
+    const basePath = basePathArg || process.env.DEFAULT_BASE_PATH || undefined
+    const forceInitialIndex = force || false
+
+    try {
+      this.nonBlockingCloudSync()
+
+      const absolutePath = ensureAbsolutePath(codebasePath)
+
+      if (!fs.existsSync(absolutePath)) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error: Path '${absolutePath}' does not exist. Original input: '${codebasePath}'`,
+          }],
+          isError: true,
+        }
+      }
+
+      const stat = fs.statSync(absolutePath)
+      if (!stat.isDirectory()) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error: Path '${absolutePath}' is not a directory`,
+          }],
+          isError: true,
+        }
+      }
+
+      let portableKey: string
+      try {
+        portableKey = resolvePortableKey(absolutePath, basePath)
+      }
+      catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error: ${error.message}`,
+          }],
+          isError: true,
+        }
+      }
+
+      const displayPath = basePath
+        ? `'${absolutePath}' (collection: '${portableKey}')`
+        : `'${absolutePath}'`
+
+      // Check if currently indexing
+      if (this.snapshotManager.getIndexingCodebases().includes(portableKey)) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Codebase ${displayPath} is currently being indexed. Wait for indexing to complete before syncing.`,
+          }],
+          isError: true,
+        }
+      }
+
+      // Check if indexed
+      const isIndexed = this.snapshotManager.getIndexedCodebases().includes(portableKey)
+        || await this.context.hasIndex(portableKey)
+
+      if (!isIndexed) {
+        if (forceInitialIndex) {
+          // Delegate to handleIndexCodebase for full initial index
+          return await this.handleIndexCodebase({ ...args, force: true })
+        }
+
+        return {
+          content: [{
+            type: 'text',
+            text: `Codebase ${displayPath} has not been indexed yet. Use index_codebase first, or pass force=true to perform initial indexing.`,
+          }],
+          isError: true,
+        }
+      }
+
+      console.log(`[SYNC] Starting incremental sync for: ${displayPath}`)
+
+      const result = await this.context.reindexByChange(
+        absolutePath,
+        (progress) => {
+          console.log(`[SYNC] ${progress.phase} - ${progress.percentage}% (${progress.current}/${progress.total})`)
+        },
+      )
+
+      const totalChanges = result.added + result.removed + result.modified
+
+      if (totalChanges === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Sync complete for ${displayPath}: no changes detected.`,
+          }],
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Sync complete for ${displayPath}:\n- Added: ${result.added} files\n- Removed: ${result.removed} files\n- Modified: ${result.modified} files`,
+        }],
+      }
+    }
+    catch (error: any) {
+      console.error('[SYNC] Error during sync:', error)
+      return {
+        content: [{
+          type: 'text',
+          text: `Error syncing codebase: ${error.message || error}`,
+        }],
+        isError: true,
+      }
+    }
+  }
+
   public async handleGetIndexingStatus(args: any) {
     const { path: codebasePath, base_path: basePathArg } = args
     const basePath = basePathArg || process.env.DEFAULT_BASE_PATH || undefined
