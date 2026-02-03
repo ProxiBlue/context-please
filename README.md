@@ -644,6 +644,35 @@ With this set, all tool calls automatically use `/var/www/html` as the base path
 
 **Resolution order:** explicit `base_path` parameter > `DEFAULT_BASE_PATH` env var > no base path (absolute path behavior)
 
+#### Environment Variable: `DISABLE_STARTUP_SYNC`
+
+Set `DISABLE_STARTUP_SYNC=true` to skip the automatic background sync that runs on MCP server startup and every 5 minutes thereafter.
+
+By default, the server iterates all indexed codebases on startup and runs `reindexByChange()` on each to detect file additions, removals, and modifications. For large codebases with many indexed collections, this can introduce significant startup delay and ongoing overhead.
+
+Disabling startup sync is recommended when:
+- Your indexed codebases rarely change (e.g., vendor/third-party code)
+- You prefer to sync manually via the `sync_codebase` tool when needed
+- Startup speed is important (e.g., MCP server restarts frequently during development)
+
+```json
+{
+  "context-please": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "@anthropic/context-please-mcp"],
+    "env": {
+      "VECTOR_DB_TYPE": "milvus",
+      "MILVUS_ADDRESS": "your-milvus-host:19530",
+      "DEFAULT_BASE_PATH": "/var/www/html",
+      "DISABLE_STARTUP_SYNC": "true"
+    }
+  }
+}
+```
+
+When disabled, you can still trigger a sync manually at any time using the `sync_codebase` tool. This gives you full control over when file change detection runs.
+
 #### Usage Examples
 
 **Index a vendor directory portably:**

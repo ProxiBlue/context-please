@@ -505,9 +505,14 @@ This tool is versatile and can be used before completing various tasks to retrie
     console.log('MCP server started and listening on stdio.')
     console.log('[SYNC-DEBUG] Server connection established successfully')
 
-    // Start background sync after server is connected
-    console.log('[SYNC-DEBUG] Initializing background sync...')
-    this.syncManager.startBackgroundSync()
+    // Start background sync after server is connected (unless disabled)
+    if (process.env.DISABLE_STARTUP_SYNC === 'true') {
+      console.log('[SYNC] Background sync disabled via DISABLE_STARTUP_SYNC=true')
+    }
+    else {
+      console.log('[SYNC-DEBUG] Initializing background sync...')
+      this.syncManager.startBackgroundSync()
+    }
     console.log('[SYNC-DEBUG] MCP server initialization complete')
   }
 }

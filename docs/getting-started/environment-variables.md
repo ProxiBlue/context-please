@@ -63,6 +63,8 @@ Claude Context supports a global configuration file at `~/.context/.env` to simp
 | `SPLITTER_TYPE` | Code splitter type: `ast`, `langchain` | `ast` |
 | `CUSTOM_EXTENSIONS` | Additional file extensions to include (comma-separated, e.g., `.vue,.svelte,.astro`) | None |
 | `CUSTOM_IGNORE_PATTERNS` | Additional ignore patterns (comma-separated, e.g., `temp/**,*.backup,private/**`) | None |
+| `DEFAULT_BASE_PATH` | Absolute path prefix for portable collection naming. When set, `search_code` searches across all indexed collections instead of a single exact match. | None |
+| `DISABLE_STARTUP_SYNC` | Set to `true` to skip the automatic background sync on startup and the 5-minute periodic sync. Use `sync_codebase` tool for manual sync when needed. | `false` |
 
 ## 🚀 Quick Setup
 
