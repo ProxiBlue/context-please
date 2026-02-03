@@ -740,99 +740,89 @@ export class ToolHandlers {
         filterExpr = `fileExtension in [${quoted}]`
       }
 
-      // If no exact collection found, attempt multi-collection prefix search
-      if (!isIndexed && !isIndexing) {
-        console.log(`[SEARCH] No exact collection for '${absolutePath}', attempting multi-collection prefix search...`)
+      // When base_path is set (via arg or DEFAULT_BASE_PATH), always search
+      // across all indexed collections. The provided path validates the directory
+      // exists but does not limit search scope. This ensures cross-package
+      // results are always returned regardless of which specific sub-path the
+      // caller provides. Without base_path, fall back to single-collection
+      // search for backward compatibility.
+      const vectorDb = this.context.getVectorDatabase()
+      const supportsMultiSearch = typeof (vectorDb as any).getCollectionCodebasePaths === 'function'
+
+      if (basePath && supportsMultiSearch) {
+        console.log(`[SEARCH] base_path set — always using multi-collection search across all indexed collections`)
 
         try {
-          const vectorDb = this.context.getVectorDatabase()
+          const collectionMap: Map<string, string> = await (vectorDb as any).getCollectionCodebasePaths()
 
-          // Check if the vector database supports getCollectionCodebasePaths
-          if (typeof (vectorDb as any).getCollectionCodebasePaths === 'function') {
-            const collectionMap: Map<string, string> = await (vectorDb as any).getCollectionCodebasePaths()
-
-            // Determine the prefix to match against collection codebasePaths.
-            // Collections indexed with base_path store relative portable keys
-            // (e.g. "vendor/mage-os/module-catalog") while collections indexed
-            // without base_path store absolute paths (e.g. "/var/www/html/vendor/...").
-            // Try deriving a portable key from DEFAULT_BASE_PATH or base_path arg
-            // first, then fall back to absolutePath for backward compatibility.
-            // NOTE: Once the base_path feature is merged upstream, this dual
-            // matching can be simplified to always use portable keys.
-            let matchPrefix = absolutePath
-            const basePath = (args as any).base_path || process.env.DEFAULT_BASE_PATH
-            if (basePath && path.isAbsolute(basePath)) {
-              const normalizedBase = path.resolve(basePath)
-              const normalizedAbs = path.resolve(absolutePath)
-              const relative = path.relative(normalizedBase, normalizedAbs)
-
-              if (relative === '') {
-                // path equals base_path — match all collections
-                matchPrefix = '.'
-              }
-              else if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
-                matchPrefix = relative
-              }
+          if (collectionMap.size === 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Error: No indexed collections found in the vector database. Please index codebases first using the index_codebase tool.`,
+              }],
+              isError: true,
             }
+          }
 
-            const matchAll = matchPrefix === '.'
+          // Always search all collections when base_path is configured
+          const matchPrefix = '.'
 
-            // Check if any collections match the path as a prefix
-            let hasMatches = false
-            for (const codebasePath of collectionMap.values()) {
-              if (matchAll || codebasePath.startsWith(matchPrefix)) {
-                hasMatches = true
-                break
-              }
+          console.log(`[SEARCH] Searching across ${collectionMap.size} collections for: "${query}"`)
+
+          const searchResults = await this.context.semanticSearchMulti(
+            matchPrefix,
+            collectionMap,
+            query,
+            Math.min(resultLimit, 50),
+            0.3,
+            filterExpr,
+          )
+
+          if (searchResults.length === 0) {
+            let noResultsMessage = `No results found for query: "${query}" across ${collectionMap.size} indexed collections`
+            if (isIndexing) {
+              noResultsMessage += `\n\nNote: Some codebases are still being indexed. Try searching again after indexing completes.`
             }
-
-            if (hasMatches) {
-              console.log(`[SEARCH] Found matching collections for prefix '${matchPrefix}', running parallel multi-collection search`)
-
-              const searchResults = await this.context.semanticSearchMulti(
-                matchPrefix,
-                collectionMap,
-                query,
-                Math.min(resultLimit, 50),
-                0.3,
-                filterExpr,
-              )
-
-              if (searchResults.length === 0) {
-                return {
-                  content: [{
-                    type: 'text',
-                    text: `No results found for query: "${query}" across collections matching '${absolutePath}'`,
-                  }],
-                }
-              }
-
-              // Count how many collections contributed results
-              const collectionsSearched = Array.from(collectionMap.values()).filter((cp) => matchAll || cp.startsWith(matchPrefix)).length
-
-              const formattedResults = searchResults.map((result: any, index: number) => {
-                const location = `${result.relativePath}:${result.startLine}-${result.endLine}`
-                const context = truncateContent(result.content, 5000)
-
-                return `${index + 1}. Code snippet (${result.language})\n`
-                  + `   Location: ${location}\n`
-                  + `   Rank: ${index + 1}\n`
-                  + `   Context: \n\`\`\`${result.language}\n${context}\n\`\`\`\n`
-              }).join('\n')
-
-              return {
-                content: [{
-                  type: 'text',
-                  text: `Found ${searchResults.length} results for query: "${query}" across ${collectionsSearched} collections matching '${absolutePath}'\n\n${formattedResults}`,
-                }],
-              }
+            return {
+              content: [{
+                type: 'text',
+                text: noResultsMessage,
+              }],
             }
+          }
+
+          const formattedResults = searchResults.map((result: any, index: number) => {
+            const location = `${result.relativePath}:${result.startLine}-${result.endLine}`
+            const context = truncateContent(result.content, 5000)
+
+            return `${index + 1}. Code snippet (${result.language})\n`
+              + `   Location: ${location}\n`
+              + `   Rank: ${index + 1}\n`
+              + `   Context: \n\`\`\`${result.language}\n${context}\n\`\`\`\n`
+          }).join('\n')
+
+          let resultMessage = `Found ${searchResults.length} results for query: "${query}" across ${collectionMap.size} indexed collections\n\n${formattedResults}`
+
+          if (isIndexing) {
+            resultMessage += `\n\n💡 **Tip**: Some codebases are still being indexed. More results may become available as indexing progresses.`
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: resultMessage,
+            }],
           }
         }
         catch (multiSearchError) {
-          console.warn(`[SEARCH] Multi-collection search failed, falling back to standard error:`, multiSearchError)
+          console.warn(`[SEARCH] Multi-collection search failed, falling back to single-collection search:`, multiSearchError)
+          // Fall through to single-collection search below
         }
+      }
 
+      // Single-collection search: no base_path configured or multi-collection failed
+      if (!isIndexed && !isIndexing) {
         return {
           content: [{
             type: 'text',
@@ -848,14 +838,14 @@ export class ToolHandlers {
         indexingStatusMessage = `\n⚠️  **Indexing in Progress**: This codebase is currently being indexed in the background. Search results may be incomplete until indexing completes.`
       }
 
-      console.log(`[SEARCH] Searching in codebase: ${absolutePath}`)
+      console.log(`[SEARCH] Searching in single collection: ${absolutePath}`)
       console.log(`[SEARCH] Query: "${query}"`)
       console.log(`[SEARCH] Indexing status: ${isIndexing ? 'In Progress' : 'Completed'}`)
 
       // Log embedding provider information before search
       const embeddingProvider = this.context.getEmbedding()
-      console.log(`[SEARCH] 🧠 Using embedding provider: ${embeddingProvider.getProvider()} for search`)
-      console.log(`[SEARCH] 🔍 Generating embeddings for query using ${embeddingProvider.getProvider()}...`)
+      console.log(`[SEARCH] Using embedding provider: ${embeddingProvider.getProvider()} for search`)
+      console.log(`[SEARCH] Generating embeddings for query using ${embeddingProvider.getProvider()}...`)
 
       // Search in the specified codebase (using portableKey for collection lookup)
       const searchResults = await this.context.semanticSearch(
@@ -866,7 +856,7 @@ export class ToolHandlers {
         filterExpr,
       )
 
-      console.log(`[SEARCH] ✅ Search completed! Found ${searchResults.length} results using ${embeddingProvider.getProvider()} embeddings`)
+      console.log(`[SEARCH] Search completed: ${searchResults.length} results using ${embeddingProvider.getProvider()} embeddings`)
 
       if (searchResults.length === 0) {
         let noResultsMessage = `No results found for query: "${query}" in codebase ${displayPath}`
