@@ -726,12 +726,22 @@ export class MilvusVectorDatabase extends BaseVectorDatabase<MilvusConfig> {
     const collections = await this.listCollections()
     const result = new Map<string, string>()
 
-    // Query all collections in parallel for speed
+    // Query all collections in parallel for speed.
+    // Only query collections already loaded in memory — skip unloaded ones
+    // to avoid blocking on loadCollection() which can hang on remote Milvus.
     const queries = collections
       .filter((name) => name.startsWith('code_chunks_') || name.startsWith('hybrid_code_chunks_'))
       .map(async (collectionName) => {
         try {
-          await this.ensureLoaded(collectionName)
+          const loadState = await this.client!.getLoadState({
+            collection_name: collectionName,
+          })
+
+          if (loadState.state !== LoadState.LoadStateLoaded) {
+            console.log(`[MilvusDB] Skipping unloaded collection '${collectionName}'`)
+
+            return
+          }
 
           const docs = await this.client!.query({
             collection_name: collectionName,
