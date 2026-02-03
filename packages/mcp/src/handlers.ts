@@ -1165,6 +1165,19 @@ export class ToolHandlers {
 
       const totalChanges = result.added + result.removed + result.modified
 
+      // Ensure this codebase is tracked in the snapshot even when no changes
+      // are detected. This covers the case where the module is indexed in
+      // Milvus but missing from the local snapshot file (e.g., snapshot was
+      // rebuilt or copied from another environment).
+      if (!this.snapshotManager.getIndexedCodebases().includes(portableKey)) {
+        this.snapshotManager.setCodebaseIndexed(portableKey, {
+          indexedFiles: 0,
+          totalChunks: 0,
+          status: 'completed',
+        })
+        this.snapshotManager.saveCodebaseSnapshot()
+      }
+
       if (totalChanges === 0) {
         return {
           content: [{
