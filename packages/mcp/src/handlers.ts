@@ -647,7 +647,12 @@ export class ToolHandlers {
       // - Detect: Collection exists in vector DB but snapshot doesn't know about it
       // - Recover: Query vector DB for actual statistics and sync to snapshot
       // - Result: User can search immediately without re-indexing
-      if (hasVectorCollection && !isIndexedInSnapshot && !isIndexing) {
+      //
+      // Skip when base_path is set: multi-collection search handles this case
+      // directly via getCollectionCodebasePaths() without needing per-collection
+      // recovery. The recovery path can fail when collections aren't loaded in
+      // memory (e.g., DISABLE_STARTUP_SYNC=true), blocking the search entirely.
+      if (!basePath && hasVectorCollection && !isIndexedInSnapshot && !isIndexing) {
         console.log(`[SEARCH] Collection exists for '${portableKey}' but not in snapshot - syncing state`)
 
         try {
