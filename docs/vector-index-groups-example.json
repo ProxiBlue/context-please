@@ -1,0 +1,192 @@
+{
+  "base_path": "/var/www/html",
+  "vendor_root": "vendor/mage-os",
+  "parallel": 2,
+  "groups": [
+    {
+      "name": "MageOS-Catalog",
+      "modules": [
+        "module-catalog",
+        "module-catalog-rule",
+        "module-catalog-rule-configurable",
+        "module-catalog-search",
+        "module-catalog-inventory",
+        "module-catalog-url-rewrite",
+        "module-catalog-widget",
+        "module-catalog-import-export",
+        "module-catalog-analytics",
+        "module-catalog-page-builder-analytics"
+      ]
+    },
+    {
+      "name": "MageOS-Sales",
+      "modules": [
+        "module-sales",
+        "module-sales-rule",
+        "module-sales-sequence",
+        "module-sales-inventory",
+        "module-sales-analytics"
+      ]
+    },
+    {
+      "name": "MageOS-Customer",
+      "modules": [
+        "module-customer",
+        "module-customer-import-export",
+        "module-customer-analytics"
+      ]
+    },
+    {
+      "name": "MageOS-Checkout-Quote",
+      "modules": [
+        "module-checkout",
+        "module-quote",
+        "module-checkout-agreements",
+        "module-quote-bundle-options",
+        "module-quote-configurable-options",
+        "module-quote-downloadable-links",
+        "module-quote-analytics"
+      ]
+    },
+    {
+      "name": "MageOS-CMS",
+      "modules": [
+        "module-cms",
+        "module-cms-url-rewrite",
+        "module-cms-page-builder-analytics"
+      ]
+    },
+    {
+      "name": "MageOS-Inventory-MSI",
+      "patterns": ["module-inventory*"]
+    },
+    {
+      "name": "MageOS-GraphQL",
+      "patterns": ["module-*-graph-ql", "module-graph-ql*"]
+    },
+    {
+      "name": "MageOS-Payment",
+      "modules": [
+        "module-payment",
+        "module-paypal",
+        "module-paypal-captcha",
+        "module-vault",
+        "module-offline-payments"
+      ]
+    },
+    {
+      "name": "MageOS-Shipping",
+      "modules": [
+        "module-shipping",
+        "module-dhl",
+        "module-fedex",
+        "module-ups",
+        "module-usps",
+        "module-offline-shipping"
+      ]
+    },
+    {
+      "name": "MageOS-Tax",
+      "modules": [
+        "module-tax",
+        "module-tax-import-export"
+      ]
+    },
+    {
+      "name": "MageOS-Search",
+      "modules": [
+        "module-search",
+        "module-elasticsearch",
+        "module-elasticsearch-8",
+        "module-open-search",
+        "module-layered-navigation"
+      ]
+    },
+    {
+      "name": "MageOS-Media",
+      "patterns": ["module-media*"]
+    },
+    {
+      "name": "MageOS-ReCaptcha",
+      "patterns": ["module-re-captcha*"]
+    },
+    {
+      "name": "MageOS-PageBuilder",
+      "patterns": ["module-page-builder*"]
+    },
+    {
+      "name": "MageOS-LoginAsCustomer",
+      "patterns": ["module-login-as-customer*"]
+    },
+    {
+      "name": "MageOS-CoreInfra",
+      "modules": [
+        "module-backend",
+        "module-cron",
+        "module-indexer",
+        "module-cache-invalidate",
+        "module-webapi",
+        "module-webapi-async",
+        "module-webapi-security",
+        "module-ui",
+        "module-url-rewrite",
+        "module-integration",
+        "module-message-queue",
+        "module-security",
+        "module-securitytxt"
+      ]
+    },
+    {
+      "name": "MageOS-EAV",
+      "modules": ["module-eav"]
+    },
+    {
+      "name": "MageOS-StoreConfig",
+      "modules": [
+        "module-store",
+        "module-config",
+        "module-theme",
+        "module-theme-adminhtml-switcher",
+        "module-theme-optimization",
+        "module-configurable-product",
+        "module-configurable-product-sales",
+        "module-configurable-import-export",
+        "module-deploy"
+      ]
+    },
+    {
+      "name": "MageOS-Framework",
+      "modules": [
+        "framework",
+        "framework-amqp",
+        "framework-bulk",
+        "framework-message-queue"
+      ]
+    },
+    {
+      "name": "MageOS-OtherModules",
+      "remaining": true
+    },
+    {
+      "name": "Hyva",
+      "vendor_root": "vendor/hyva-themes",
+      "modules": [
+        "hyva-ui",
+        "magento2-base-layout-reset",
+        "magento2-compat-module-fallback",
+        "magento2-default-theme",
+        "magento2-email-module",
+        "magento2-graphql-tokens",
+        "magento2-graphql-view-model",
+        "magento2-luma-checkout",
+        "magento2-magepow-categories",
+        "magento2-order-cancellation-webapi",
+        "magento2-recapture-connector",
+        "magento2-smile-elasticsuite",
+        "magento2-theme-fallback",
+        "magento2-theme-module",
+        "module-magento2-admin"
+      ]
+    }
+  ]
+}
