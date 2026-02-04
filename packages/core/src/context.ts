@@ -666,7 +666,7 @@ export class Context {
     // With 371+ collections, unlimited parallel queries kill the connection pool.
     // Removed per-collection hasCollection() check (was 371 extra round-trips per search).
     // Missing collections are caught by the try/catch and silently skipped.
-    const SEARCH_CONCURRENCY = 10
+    const SEARCH_CONCURRENCY = 25
 
     const searchCollection = async ({ collectionName, codebasePath }: { collectionName: string, codebasePath: string }) => {
       try {
